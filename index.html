@@ -42,8 +42,8 @@
       <div class="card main-fields">
         <div class="field">
           <label for="headerText">Texto do topo <span class="opt">cabeçalho da caixinha</span></label>
-          <input type="text" id="headerText" value="Faça uma pergunta" maxlength="60"
-            placeholder="Ex: Faça uma pergunta">
+          <textarea id="headerText" rows="2" maxlength="200"
+            placeholder="Ex: Faça uma pergunta">Faça uma pergunta</textarea>
         </div>
 
         <div class="field">
@@ -94,6 +94,27 @@
             <input type="checkbox" id="shadow"> Sombra suave
           </label>
           <button type="button" class="btn btn-soft" id="btnCenter">Centralizar caixinha</button>
+        </div>
+      </details>
+
+      <details class="panel">
+        <summary>Texto do topo</summary>
+        <div class="panel-body">
+          <div class="field">
+            <label for="hSize">Tamanho da fonte <b class="val" id="hSizeVal">38</b></label>
+            <input type="range" id="hSize" min="16" max="80" value="38">
+          </div>
+          <div class="field">
+            <label>Alinhamento</label>
+            <div class="segmented" id="hAlign">
+              <button type="button" class="seg" data-align="left">Esq.</button>
+              <button type="button" class="seg" data-align="center">Centro</button>
+              <button type="button" class="seg" data-align="right">Dir.</button>
+            </div>
+          </div>
+          <label class="check">
+            <input type="checkbox" id="hWrap" checked> Quebra automática de linha
+          </label>
         </div>
       </details>
 

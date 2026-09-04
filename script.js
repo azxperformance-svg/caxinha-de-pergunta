@@ -45,6 +45,7 @@
         cx: 0.5,
         cy: 0.5
       },
+      h: { size: 38, align: "center", wrap: true },
       q: { size: 52, align: "center", wrap: true },
       answer: {
         text: "",
@@ -153,20 +154,33 @@
     var padX = cardW * 0.085;
     var maxTextW = cardW - padX * 2;
 
-    var hFont = Math.max(16, Math.round(qFont * 0.72));
-    var headerH = Math.round(hFont * 3.2);
-
-    // O texto do topo reduz a fonte para caber, sem mudar a altura do cabeçalho.
+    // Cabeçalho: mesma flexibilidade do corpo — quebra de linha, tamanho e
+    // alinhamento próprios. A faixa cresce conforme o número de linhas.
+    var shrink = qFont / (state.q.size * S || qFont || 1);
+    var hFont = Math.max(12, Math.round(state.h.size * S * shrink));
     var headerText = c.headerText.trim();
-    var headerFont = hFont;
+    var headerLines = [];
+
     if (headerText) {
-      var floor = Math.max(12, hFont * 0.6);
-      setFont(ctx, H_WEIGHT, headerFont);
-      while (headerFont > floor && ctx.measureText(headerText).width > maxTextW) {
-        headerFont -= 1;
-        setFont(ctx, H_WEIGHT, headerFont);
+      if (state.h.wrap) {
+        setFont(ctx, H_WEIGHT, hFont);
+        headerLines = wrapLines(ctx, headerText, maxTextW);
+      } else {
+        var oneLine = headerText.replace(/\s*\n\s*/g, " ");
+        setFont(ctx, H_WEIGHT, hFont);
+        while (hFont > 10 && ctx.measureText(oneLine).width > maxTextW) {
+          hFont -= 1;
+          setFont(ctx, H_WEIGHT, hFont);
+        }
+        headerLines = [oneLine];
       }
     }
+
+    var headerLineH = hFont * 1.3;
+    var headerPadY = hFont * 0.95;
+    var headerH = Math.round(Math.max(headerLines.length, 1) * headerLineH + headerPadY * 2);
+    // Altura mínima do corpo continua atrelada a um cabeçalho de uma linha.
+    var headerOneLineH = headerLineH + headerPadY * 2;
 
     var text = state.question.trim();
     var lines = [];
@@ -189,13 +203,15 @@
 
     var lineH = qFont * 1.32;
     var bodyPadY = Math.max(qFont * 1.5, cardW * 0.11);
-    var bodyH = Math.max(lines.length * lineH + bodyPadY * 2, headerH * 2);
+    var bodyH = Math.max(lines.length * lineH + bodyPadY * 2, headerOneLineH * 2);
 
     return {
       w: cardW,
       h: headerH + bodyH,
       headerH: headerH,
-      headerFont: headerFont,
+      headerFont: hFont,
+      headerLines: headerLines,
+      headerLineH: headerLineH,
       padX: padX,
       qFont: qFont,
       lineH: lineH,
@@ -379,15 +395,22 @@
     context.fillRect(x, y, w, card.headerH);
     context.restore();
 
-    // texto do topo
-    var headerText = c.headerText.trim();
-    if (headerText) {
+    // texto do topo, centralizado verticalmente na faixa
+    if (card.headerLines.length) {
       context.save();
       setFont(context, H_WEIGHT, card.headerFont);
       context.fillStyle = c.headerTextColor;
-      context.textAlign = "center";
+      context.textAlign = state.h.align;
       context.textBaseline = "middle";
-      context.fillText(headerText, x + w / 2, y + card.headerH / 2, w - card.padX);
+
+      var hTextH = card.headerLines.length * card.headerLineH;
+      var hCursor = y + (card.headerH - hTextH) / 2 + card.headerLineH / 2;
+      var hx = alignX(state.h.align, x, w, card.padX);
+
+      card.headerLines.forEach(function (line) {
+        context.fillText(line, hx, hCursor);
+        hCursor += card.headerLineH;
+      });
       context.restore();
     }
 
@@ -635,6 +658,10 @@
     $("scale").value = Math.round(c.scale * 100);
     $("scaleVal").textContent = Math.round(c.scale * 100) + "%";
 
+    $("hSize").value = state.h.size;
+    $("hSizeVal").textContent = state.h.size;
+    $("hWrap").checked = state.h.wrap;
+
     $("qSize").value = state.q.size;
     $("qSizeVal").textContent = state.q.size;
     $("qWrap").checked = state.q.wrap;
@@ -649,6 +676,7 @@
     $("bgDim").checked = state.bg.dim;
 
     setSegActive($("formatBar"), "format", state.format);
+    setSegActive($("hAlign"), "align", state.h.align);
     setSegActive($("qAlign"), "align", state.q.align);
     setSegActive($("aAlign"), "align", state.answer.align);
     setSegActive($("aPos"), "pos", state.answer.pos);
@@ -689,6 +717,14 @@
     state.card.scale = +el.value / 100;
     $("scaleVal").textContent = el.value + "%";
   });
+
+  // texto do topo
+  bind("hSize", "input", function (el) {
+    state.h.size = +el.value;
+    $("hSizeVal").textContent = el.value;
+  });
+  bind("hWrap", "change", function (el) { state.h.wrap = el.checked; });
+  onSeg($("hAlign"), "align", function (v) { state.h.align = v; });
 
   // pergunta
   bind("qSize", "input", function (el) {

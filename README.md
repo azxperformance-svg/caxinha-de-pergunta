@@ -23,7 +23,7 @@ Abra o `index.html` no navegador. Sem instalação, sem build, sem backend, sem 
 O editor tem três campos, na ordem em que a caixinha é lida:
 
 1. **Texto do topo** — o que você escreveu no sticker (padrão "Faça uma pergunta");
-   aceita emoji.
+   aceita emoji e várias linhas.
 2. **Pergunta recebida** — a pergunta que o seguidor teria enviado.
 3. **Resposta** — opcional, é o texto do criativo, fora da caixinha.
 
@@ -54,8 +54,8 @@ toque), com controles de largura, tamanho geral, arredondamento e tamanho de fon
 além do botão *Centralizar caixinha*.
 
 **Personalização** — cor do cabeçalho, do corpo, do texto do topo e da pergunta;
-alinhamento e quebra automática de linha; tamanho, cor, alinhamento e posição da
-resposta.
+tamanho, alinhamento e quebra automática de linha independentes para o texto do topo
+e para a pergunta; tamanho, cor, alinhamento e posição da resposta.
 
 **Exportação** — *Baixar PNG* exporta o criativo no formato escolhido; *Baixar somente
 a caixinha* exporta só o card, com fundo transparente e no mínimo 1400px de largura.
@@ -64,11 +64,12 @@ separado, sem o xadrez de transparência do preview.
 
 ## Comportamento do texto
 
-A pergunta se adapta ao tamanho: quebra automática de linha, quebra por caractere
-para palavras maiores que a linha, altura do card crescendo conforme necessário e
-redução automática da fonte quando o card não cabe na altura do criativo. O texto
-do topo também reduz a fonte para caber, sem alterar a altura do cabeçalho. O texto
-nunca escapa da caixinha.
+Os dois textos da caixinha se adaptam do mesmo jeito: quebra automática de linha,
+quebra manual com Enter, quebra por caractere para palavras maiores que a linha e
+crescimento em altura conforme necessário — o cabeçalho ganha linhas e o corpo
+acompanha. Com a quebra automática desligada, a fonte encolhe até o texto caber em
+uma linha só, e a fonte da pergunta também reduz quando o card não cabe na altura do
+criativo. O texto nunca escapa da caixinha.
 
 ## Estrutura
 
