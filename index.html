@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caixinha de Pergunta</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <h1>Caixinha de Pergunta</h1>
+    <p>Crie caixinhas de pergunta e resposta no estilo Stories e exporte em PNG.</p>
+  </header>
+
+  <main class="layout">
+
+    <section class="preview-panel">
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="1080" height="1920"></canvas>
+      </div>
+    </section>
+
+    <section class="editor-panel">
+      <div class="controls">
+
+        <div class="field">
+          <label for="pergunta">Pergunta <span class="hint">(opcional)</span></label>
+          <textarea id="pergunta" rows="2" maxlength="200" placeholder="Ex: Qual sua cor favorita?"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="resposta">Resposta <span class="hint">(opcional)</span></label>
+          <textarea id="resposta" rows="3" maxlength="300" placeholder="Ex: Azul, sem dúvidas!"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Fundo</label>
+          <div class="segmented" id="bgTypeGroup">
+            <button type="button" class="seg-btn active" data-bgtype="solid">Cor sólida</button>
+            <button type="button" class="seg-btn" data-bgtype="gradient">Gradiente</button>
+            <button type="button" class="seg-btn" data-bgtype="image">Imagem</button>
+          </div>
+        </div>
+
+        <div class="field row" id="bgColor1Field">
+          <label for="bgColor1">Cor do fundo</label>
+          <input type="color" id="bgColor1" value="#6C4AE6">
+        </div>
+
+        <div class="field row hidden" id="bgColor2Field">
+          <label for="bgColor2">2ª cor do gradiente</label>
+          <input type="color" id="bgColor2" value="#FF6EC7">
+        </div>
+
+        <div class="field hidden" id="bgImageField">
+          <label for="bgImage">Imagem de fundo</label>
+          <input type="file" id="bgImage" accept="image/*">
+          <label class="checkbox-label">
+            <input type="checkbox" id="bgOverlay" checked>
+            Escurecer imagem para melhor leitura
+          </label>
+        </div>
+
+        <div class="field row">
+          <label for="boxColor">Cor da caixinha</label>
+          <input type="color" id="boxColor" value="#FFFFFF">
+        </div>
+
+        <div class="field">
+          <label for="boxOpacity">Opacidade da caixinha <span class="value" id="boxOpacityVal">92%</span></label>
+          <input type="range" id="boxOpacity" min="30" max="100" value="92">
+        </div>
+
+        <div class="field row">
+          <label for="textColor">Cor do texto</label>
+          <input type="color" id="textColor" value="#1A1A1A">
+        </div>
+
+        <div class="field">
+          <label for="textSize">Tamanho do texto <span class="value" id="textSizeVal">48px</span></label>
+          <input type="range" id="textSize" min="28" max="72" value="48">
+        </div>
+
+        <div class="field">
+          <label>Alinhamento</label>
+          <div class="segmented" id="alignGroup">
+            <button type="button" class="seg-btn" data-align="left">Esquerda</button>
+            <button type="button" class="seg-btn active" data-align="center">Centro</button>
+            <button type="button" class="seg-btn" data-align="right">Direita</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="radius">Arredondamento <span class="value" id="radiusVal">48px</span></label>
+          <input type="range" id="radius" min="0" max="120" value="48">
+        </div>
+
+      </div>
+    </section>
+
+    <div class="export-bar">
+      <button type="button" id="downloadBtn">Baixar PNG</button>
+      <span class="export-hint">1080 × 1920 px</span>
+    </div>
+
+  </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
