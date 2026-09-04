@@ -2,107 +2,195 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Caixinha de Pergunta</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Criador de Perguntas para Stories</title>
+<meta name="description" content="Crie caixinhas de pergunta recebida no estilo Instagram e exporte em PNG.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <div class="app">
-  <header class="app-header">
-    <h1>Caixinha de Pergunta</h1>
-    <p>Crie caixinhas de pergunta e resposta no estilo Stories e exporte em PNG.</p>
+
+  <header class="topbar">
+    <h1>Criador de Perguntas</h1>
+    <div class="topbar-actions">
+      <button type="button" class="btn btn-ghost" id="btnClear">Limpar</button>
+    </div>
   </header>
 
   <main class="layout">
 
-    <section class="preview-panel">
-      <div class="canvas-wrap">
+    <!-- ============ PREVIEW ============ -->
+    <section class="preview" aria-label="Pré-visualização">
+      <div class="format-bar" id="formatBar" role="group" aria-label="Formato">
+        <button type="button" class="seg" data-format="story">Story<small>1080×1920</small></button>
+        <button type="button" class="seg" data-format="vertical">Vertical<small>1080×1350</small></button>
+        <button type="button" class="seg" data-format="square">Quadrado<small>1080×1080</small></button>
+        <button type="button" class="seg" data-format="box">Só a caixinha<small>Transparente</small></button>
+      </div>
+
+      <div class="stage" id="stage">
         <canvas id="canvas" width="1080" height="1920"></canvas>
       </div>
+
+      <p class="stage-hint" id="stageHint">Arraste a caixinha no preview para reposicionar.</p>
     </section>
 
-    <section class="editor-panel">
-      <div class="controls">
+    <!-- ============ EDITOR ============ -->
+    <section class="editor" aria-label="Editor">
 
+      <div class="card main-fields">
         <div class="field">
-          <label for="pergunta">Pergunta <span class="hint">(opcional)</span></label>
-          <textarea id="pergunta" rows="2" maxlength="200" placeholder="Ex: Qual sua cor favorita?"></textarea>
+          <label for="pergunta">Pergunta recebida</label>
+          <textarea id="pergunta" rows="2" maxlength="300"
+            placeholder="Ex: Quanto custa o tratamento?"></textarea>
         </div>
 
         <div class="field">
-          <label for="resposta">Resposta <span class="hint">(opcional)</span></label>
-          <textarea id="resposta" rows="3" maxlength="300" placeholder="Ex: Azul, sem dúvidas!"></textarea>
+          <label for="resposta">Resposta <span class="opt">opcional</span></label>
+          <textarea id="resposta" rows="2" maxlength="400"
+            placeholder="Ex: A partir de R$ 199 — te explico tudo no direct."></textarea>
         </div>
+      </div>
 
-        <div class="field">
-          <label>Fundo</label>
-          <div class="segmented" id="bgTypeGroup">
-            <button type="button" class="seg-btn active" data-bgtype="solid">Cor sólida</button>
-            <button type="button" class="seg-btn" data-bgtype="gradient">Gradiente</button>
-            <button type="button" class="seg-btn" data-bgtype="image">Imagem</button>
+      <details class="panel">
+        <summary>Caixinha</summary>
+        <div class="panel-body">
+          <div class="field row">
+            <label for="headerColor">Cor do cabeçalho</label>
+            <input type="color" id="headerColor" value="#1C1C1E">
           </div>
+          <div class="field row">
+            <label for="bodyColor">Cor do corpo</label>
+            <input type="color" id="bodyColor" value="#FFFFFF">
+          </div>
+          <div class="field row">
+            <label for="headerTextColor">Cor do texto superior</label>
+            <input type="color" id="headerTextColor" value="#E9E9EB">
+          </div>
+          <div class="field row">
+            <label for="qColor">Cor da pergunta</label>
+            <input type="color" id="qColor" value="#1A1A1A">
+          </div>
+          <div class="field">
+            <label for="cardWidth">Largura <b class="val" id="cardWidthVal">82%</b></label>
+            <input type="range" id="cardWidth" min="40" max="100" value="82">
+          </div>
+          <div class="field">
+            <label for="radius">Arredondamento <b class="val" id="radiusVal">44</b></label>
+            <input type="range" id="radius" min="0" max="90" value="44">
+          </div>
+          <div class="field">
+            <label for="scale">Tamanho geral <b class="val" id="scaleVal">100%</b></label>
+            <input type="range" id="scale" min="50" max="150" value="100">
+          </div>
+          <label class="check">
+            <input type="checkbox" id="shadow"> Sombra suave
+          </label>
+          <div class="field">
+            <label for="headerText">Texto do topo</label>
+            <input type="text" id="headerText" value="Faça uma pergunta" maxlength="60">
+          </div>
+          <button type="button" class="btn btn-soft" id="btnCenter">Centralizar caixinha</button>
         </div>
+      </details>
 
-        <div class="field row" id="bgColor1Field">
-          <label for="bgColor1">Cor do fundo</label>
-          <input type="color" id="bgColor1" value="#6C4AE6">
-        </div>
-
-        <div class="field row hidden" id="bgColor2Field">
-          <label for="bgColor2">2ª cor do gradiente</label>
-          <input type="color" id="bgColor2" value="#FF6EC7">
-        </div>
-
-        <div class="field hidden" id="bgImageField">
-          <label for="bgImage">Imagem de fundo</label>
-          <input type="file" id="bgImage" accept="image/*">
-          <label class="checkbox-label">
-            <input type="checkbox" id="bgOverlay" checked>
-            Escurecer imagem para melhor leitura
+      <details class="panel">
+        <summary>Pergunta</summary>
+        <div class="panel-body">
+          <div class="field">
+            <label for="qSize">Tamanho da fonte <b class="val" id="qSizeVal">52</b></label>
+            <input type="range" id="qSize" min="24" max="96" value="52">
+          </div>
+          <div class="field">
+            <label>Alinhamento</label>
+            <div class="segmented" id="qAlign">
+              <button type="button" class="seg" data-align="left">Esq.</button>
+              <button type="button" class="seg" data-align="center">Centro</button>
+              <button type="button" class="seg" data-align="right">Dir.</button>
+            </div>
+          </div>
+          <label class="check">
+            <input type="checkbox" id="qWrap" checked> Quebra automática de linha
           </label>
         </div>
+      </details>
 
-        <div class="field row">
-          <label for="boxColor">Cor da caixinha</label>
-          <input type="color" id="boxColor" value="#FFFFFF">
-        </div>
-
-        <div class="field">
-          <label for="boxOpacity">Opacidade da caixinha <span class="value" id="boxOpacityVal">92%</span></label>
-          <input type="range" id="boxOpacity" min="30" max="100" value="92">
-        </div>
-
-        <div class="field row">
-          <label for="textColor">Cor do texto</label>
-          <input type="color" id="textColor" value="#1A1A1A">
-        </div>
-
-        <div class="field">
-          <label for="textSize">Tamanho do texto <span class="value" id="textSizeVal">48px</span></label>
-          <input type="range" id="textSize" min="28" max="72" value="48">
-        </div>
-
-        <div class="field">
-          <label>Alinhamento</label>
-          <div class="segmented" id="alignGroup">
-            <button type="button" class="seg-btn" data-align="left">Esquerda</button>
-            <button type="button" class="seg-btn active" data-align="center">Centro</button>
-            <button type="button" class="seg-btn" data-align="right">Direita</button>
+      <details class="panel">
+        <summary>Resposta</summary>
+        <div class="panel-body">
+          <div class="field">
+            <label for="aSize">Tamanho da fonte <b class="val" id="aSizeVal">54</b></label>
+            <input type="range" id="aSize" min="24" max="110" value="54">
+          </div>
+          <div class="field row">
+            <label for="aColor">Cor</label>
+            <input type="color" id="aColor" value="#FFFFFF">
+          </div>
+          <div class="field">
+            <label>Alinhamento</label>
+            <div class="segmented" id="aAlign">
+              <button type="button" class="seg" data-align="left">Esq.</button>
+              <button type="button" class="seg" data-align="center">Centro</button>
+              <button type="button" class="seg" data-align="right">Dir.</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Posição</label>
+            <div class="segmented" id="aPos">
+              <button type="button" class="seg" data-pos="above">Acima</button>
+              <button type="button" class="seg" data-pos="below">Abaixo</button>
+              <button type="button" class="seg" data-pos="free">Livre</button>
+            </div>
           </div>
         </div>
+      </details>
 
-        <div class="field">
-          <label for="radius">Arredondamento <span class="value" id="radiusVal">48px</span></label>
-          <input type="range" id="radius" min="0" max="120" value="48">
+      <details class="panel">
+        <summary>Fundo</summary>
+        <div class="panel-body">
+          <div class="field">
+            <div class="segmented" id="bgType">
+              <button type="button" class="seg" data-bg="transparent">Transp.</button>
+              <button type="button" class="seg" data-bg="solid">Cor</button>
+              <button type="button" class="seg" data-bg="gradient">Gradiente</button>
+              <button type="button" class="seg" data-bg="image">Imagem</button>
+            </div>
+          </div>
+          <div class="field row" id="bg1Field" hidden>
+            <label for="bgColor1">Cor</label>
+            <input type="color" id="bgColor1" value="#6C4AE6">
+          </div>
+          <div class="field row" id="bg2Field" hidden>
+            <label for="bgColor2">2ª cor</label>
+            <input type="color" id="bgColor2" value="#FF6EC7">
+          </div>
+          <div class="field" id="bgAngleField" hidden>
+            <label for="bgAngle">Direção do gradiente</label>
+            <select id="bgAngle">
+              <option value="vertical">Vertical</option>
+              <option value="diagonal" selected>Diagonal</option>
+              <option value="horizontal">Horizontal</option>
+            </select>
+          </div>
+          <div class="field" id="bgImageField" hidden>
+            <label for="bgImage">Imagem</label>
+            <input type="file" id="bgImage" accept="image/*">
+            <label class="check">
+              <input type="checkbox" id="bgDim"> Escurecer imagem
+            </label>
+          </div>
         </div>
+      </details>
 
-      </div>
     </section>
 
-    <div class="export-bar">
-      <button type="button" id="downloadBtn">Baixar PNG</button>
-      <span class="export-hint">1080 × 1920 px</span>
-    </div>
+    <!-- ============ EXPORT ============ -->
+    <section class="exportbar">
+      <button type="button" class="btn btn-primary" id="btnDownload">Baixar PNG</button>
+      <button type="button" class="btn btn-soft" id="btnDownloadBox">Baixar somente a caixinha</button>
+      <span class="size-tag" id="sizeTag">1080 × 1920</span>
+    </section>
 
   </main>
 </div>

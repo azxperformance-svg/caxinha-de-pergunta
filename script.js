@@ -1,316 +1,697 @@
+/*
+ * Criador de Perguntas para Stories
+ * Gera cards que simulam uma pergunta JÁ RECEBIDA na caixinha do Instagram.
+ * Tudo roda no navegador: sem backend, sem dependências.
+ */
 (function () {
   "use strict";
 
-  var CANVAS_W = 1080;
-  var CANVAS_H = 1920;
+  var BASE_W = 1080; // largura de referência usada para dimensionar a caixinha
+  var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+  var FORMATS = {
+    story: { w: 1080, h: 1920, label: "1080 × 1920" },
+    vertical: { w: 1080, h: 1350, label: "1080 × 1350" },
+    square: { w: 1080, h: 1080, label: "1080 × 1080" },
+    box: { w: 0, h: 0, label: "Automático" }
+  };
 
   var canvas = document.getElementById("canvas");
   var ctx = canvas.getContext("2d");
 
-  var els = {
-    pergunta: document.getElementById("pergunta"),
-    resposta: document.getElementById("resposta"),
-    bgColor1: document.getElementById("bgColor1"),
-    bgColor2: document.getElementById("bgColor2"),
-    bgColor1Field: document.getElementById("bgColor1Field"),
-    bgColor2Field: document.getElementById("bgColor2Field"),
-    bgImageField: document.getElementById("bgImageField"),
-    bgImage: document.getElementById("bgImage"),
-    bgOverlay: document.getElementById("bgOverlay"),
-    boxColor: document.getElementById("boxColor"),
-    boxOpacity: document.getElementById("boxOpacity"),
-    boxOpacityVal: document.getElementById("boxOpacityVal"),
-    textColor: document.getElementById("textColor"),
-    textSize: document.getElementById("textSize"),
-    textSizeVal: document.getElementById("textSizeVal"),
-    radius: document.getElementById("radius"),
-    radiusVal: document.getElementById("radiusVal"),
-    downloadBtn: document.getElementById("downloadBtn"),
-    bgTypeGroup: document.getElementById("bgTypeGroup"),
-    alignGroup: document.getElementById("alignGroup"),
-  };
+  var $ = function (id) { return document.getElementById(id); };
 
   var state = {
-    pergunta: "",
-    resposta: "",
-    bgType: "solid", // solid | gradient | image
-    bgColor1: els.bgColor1.value,
-    bgColor2: els.bgColor2.value,
-    bgImageEl: null,
-    bgOverlay: true,
-    boxColor: els.boxColor.value,
-    boxOpacity: parseInt(els.boxOpacity.value, 10) / 100,
-    textColor: els.textColor.value,
-    textSize: parseInt(els.textSize.value, 10),
-    align: "center",
-    radius: parseInt(els.radius.value, 10),
+    format: "story",
+    question: "Quanto custa o tratamento?",
+    card: {
+      headerText: "Faça uma pergunta",
+      headerColor: "#1C1C1E",
+      bodyColor: "#FFFFFF",
+      headerTextColor: "#E9E9EB",
+      qColor: "#1A1A1A",
+      widthFrac: 0.82,
+      radius: 44,
+      scale: 1,
+      shadow: false,
+      cx: 0.5,
+      cy: 0.5
+    },
+    q: { size: 52, align: "center", wrap: true },
+    answer: {
+      text: "",
+      size: 54,
+      color: "#FFFFFF",
+      align: "center",
+      pos: "below",
+      cx: 0.5,
+      cy: 0.75
+    },
+    bg: {
+      type: "solid",
+      color1: "#6C4AE6",
+      color2: "#FF6EC7",
+      angle: "diagonal",
+      image: null,
+      dim: false
+    }
   };
 
+  /* ------------------------------------------------------------------ */
+  /* utilidades                                                          */
+  /* ------------------------------------------------------------------ */
+
+  function clamp(v, min, max) { return v < min ? min : v > max ? max : v; }
+
   function hexToRgb(hex) {
-    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
     return m
       ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
       : { r: 0, g: 0, b: 0 };
   }
 
-  function rgba(hex, alpha) {
+  function rgba(hex, a) {
     var c = hexToRgb(hex);
-    return "rgba(" + c.r + "," + c.g + "," + c.b + "," + alpha + ")";
+    return "rgba(" + c.r + "," + c.g + "," + c.b + "," + a + ")";
   }
 
-  function wrapText(context, text, maxWidth) {
-    var paragraphs = String(text).replace(/\r\n/g, "\n").split("\n");
-    var lines = [];
-    paragraphs.forEach(function (paragraph) {
-      if (paragraph === "") {
-        lines.push("");
-        return;
-      }
-      var words = paragraph.split(" ");
-      var current = "";
-      words.forEach(function (word) {
-        var test = current ? current + " " + word : word;
-        if (context.measureText(test).width > maxWidth && current) {
-          lines.push(current);
-          current = word;
+  function setFont(context, weight, size) {
+    context.font = weight + " " + size + "px " + FONT;
+  }
+
+  function wrapLines(context, text, maxWidth) {
+    var out = [];
+    String(text).replace(/\r\n/g, "\n").split("\n").forEach(function (para) {
+      if (para.trim() === "") { out.push(""); return; }
+      var line = "";
+
+      para.split(/\s+/).forEach(function (word) {
+        // Palavra maior que a linha inteira: quebra por caractere.
+        while (word && context.measureText(word).width > maxWidth) {
+          if (line) { out.push(line); line = ""; continue; }
+          var cut = 1;
+          while (cut < word.length &&
+                 context.measureText(word.slice(0, cut + 1)).width <= maxWidth) cut++;
+          out.push(word.slice(0, cut));
+          word = word.slice(cut);
+        }
+        if (!word) return;
+
+        var test = line ? line + " " + word : word;
+        if (line && context.measureText(test).width > maxWidth) {
+          out.push(line);
+          line = word;
         } else {
-          current = test;
+          line = test;
         }
       });
-      if (current) lines.push(current);
+
+      if (line) out.push(line);
     });
-    return lines;
+    while (out.length > 1 && out[out.length - 1] === "") out.pop();
+    return out;
   }
 
-  function roundRectPath(context, x, y, w, h, r) {
-    var radius = Math.min(r, w / 2, h / 2);
+  function roundRect(context, x, y, w, h, r) {
+    var rad = Math.min(r, w / 2, h / 2);
     context.beginPath();
-    context.moveTo(x + radius, y);
-    context.arcTo(x + w, y, x + w, y + h, radius);
-    context.arcTo(x + w, y + h, x, y + h, radius);
-    context.arcTo(x, y + h, x, y, radius);
-    context.arcTo(x, y, x + w, y, radius);
+    context.moveTo(x + rad, y);
+    context.arcTo(x + w, y, x + w, y + h, rad);
+    context.arcTo(x + w, y + h, x, y + h, rad);
+    context.arcTo(x, y + h, x, y, rad);
+    context.arcTo(x, y, x + w, y, rad);
     context.closePath();
   }
 
-  function drawBackground() {
-    if (state.bgType === "gradient") {
-      var g = ctx.createLinearGradient(0, 0, CANVAS_W, CANVAS_H);
-      g.addColorStop(0, state.bgColor1);
-      g.addColorStop(1, state.bgColor2);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    } else if (state.bgType === "image" && state.bgImageEl) {
-      var img = state.bgImageEl;
-      var imgRatio = img.width / img.height;
-      var canvasRatio = CANVAS_W / CANVAS_H;
-      var sw, sh, sx, sy;
-      if (imgRatio > canvasRatio) {
-        sh = img.height;
-        sw = sh * canvasRatio;
-        sx = (img.width - sw) / 2;
-        sy = 0;
-      } else {
-        sw = img.width;
-        sh = sw / canvasRatio;
-        sx = 0;
-        sy = (img.height - sh) / 2;
-      }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, CANVAS_W, CANVAS_H);
-      if (state.bgOverlay) {
-        ctx.fillStyle = "rgba(0,0,0,0.35)";
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-      }
-    } else {
-      ctx.fillStyle = state.bgColor1;
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    }
+  function alignX(align, left, width, pad) {
+    if (align === "left") return left + pad;
+    if (align === "right") return left + width - pad;
+    return left + width / 2;
   }
 
-  function render() {
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    drawBackground();
+  /* ------------------------------------------------------------------ */
+  /* layout                                                              */
+  /* ------------------------------------------------------------------ */
 
-    var boxWidth = CANVAS_W * 0.86;
-    var boxX = (CANVAS_W - boxWidth) / 2;
-    var padX = boxWidth * 0.09;
-    var padY = boxWidth * 0.08;
-    var textMaxWidth = boxWidth - padX * 2;
+  // Mede a caixinha (largura, altura, linhas já quebradas) para uma fonte específica.
+  function measureCardAt(qFont) {
+    var c = state.card;
+    var S = c.scale;
+    // A caixinha nunca pode ultrapassar a largura do criativo.
+    var cardW = Math.min(BASE_W, Math.round(BASE_W * c.widthFrac * S));
+    var padX = cardW * 0.085;
+    var maxTextW = cardW - padX * 2;
 
-    var fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    var hFont = Math.max(16, Math.round(qFont * 0.5));
+    var headerH = Math.round(hFont * 3.1);
 
-    var hasQuestion = state.pergunta.trim().length > 0;
-    var hasAnswer = state.resposta.trim().length > 0;
-    var both = hasQuestion && hasAnswer;
+    var text = state.question.trim();
+    var lines = [];
 
-    // When both fields are present, the question is shown as a smaller
-    // label above the (bigger, bold) answer. When only one field is
-    // present, it becomes the main text and gets the full size.
-    var answerSize = state.textSize;
-    var questionSize = both ? Math.round(state.textSize * 0.52) : state.textSize;
-    var questionWeight = both ? "600" : "700";
-    var questionOpacity = both ? 0.72 : 1;
-    var lineGapAnswer = answerSize * 1.32;
-    var lineGapQuestion = questionSize * 1.32;
-
-    ctx.font = questionWeight + " " + questionSize + "px " + fontFamily;
-    var questionLines = hasQuestion ? wrapText(ctx, state.pergunta.trim(), textMaxWidth) : [];
-
-    ctx.font = "700 " + answerSize + "px " + fontFamily;
-    var answerLines = hasAnswer ? wrapText(ctx, state.resposta.trim(), textMaxWidth) : [];
-
-    var contentHeight = 0;
-    if (hasQuestion) contentHeight += questionLines.length * lineGapQuestion;
-    if (both) contentHeight += boxWidth * 0.05; // divider gap
-    if (hasAnswer) contentHeight += answerLines.length * lineGapAnswer;
-
-    var minEmptyHeight = boxWidth * 0.32;
-    var boxHeight = (hasQuestion || hasAnswer) ? (padY * 2 + contentHeight) : minEmptyHeight;
-
-    var boxY = (CANVAS_H - boxHeight) / 2;
-
-    // Box with soft shadow
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.28)";
-    ctx.shadowBlur = 46;
-    ctx.shadowOffsetY = 18;
-    roundRectPath(ctx, boxX, boxY, boxWidth, boxHeight, state.radius);
-    ctx.fillStyle = rgba(state.boxColor, state.boxOpacity);
-    ctx.fill();
-    ctx.restore();
-
-    // Text
-    var textAlign = state.align;
-    var textX;
-    if (textAlign === "left") textX = boxX + padX;
-    else if (textAlign === "right") textX = boxX + boxWidth - padX;
-    else textX = boxX + boxWidth / 2;
-
-    ctx.textAlign = textAlign;
-    ctx.textBaseline = "alphabetic";
-
-    var cursorY = boxY + padY;
-
-    if (hasQuestion) {
-      ctx.font = questionWeight + " " + questionSize + "px " + fontFamily;
-      ctx.fillStyle = rgba(state.textColor, questionOpacity);
-      cursorY += questionSize * 0.92;
-      questionLines.forEach(function (line) {
-        ctx.fillText(line, textX, cursorY);
-        cursorY += lineGapQuestion;
-      });
-      cursorY += lineGapQuestion * 0.4 - questionSize * 0.92;
+    if (text) {
+      if (state.q.wrap) {
+        setFont(ctx, "600", qFont);
+        lines = wrapLines(ctx, text, maxTextW);
+      } else {
+        // sem quebra: reduz a fonte até caber em uma única linha
+        var single = text.replace(/\s*\n\s*/g, " ");
+        setFont(ctx, "600", qFont);
+        while (qFont > 12 && ctx.measureText(single).width > maxTextW) {
+          qFont -= 1;
+          setFont(ctx, "600", qFont);
+        }
+        lines = [single];
+      }
     }
 
-    if (both) {
-      var dividerY = cursorY + boxWidth * 0.025 - questionSize * 0.2;
-      var dividerW = boxWidth * 0.14;
-      var dividerX = textAlign === "left" ? boxX + padX
-        : textAlign === "right" ? boxX + boxWidth - padX - dividerW
-        : boxX + boxWidth / 2 - dividerW / 2;
-      ctx.fillStyle = rgba(state.textColor, 0.18);
-      ctx.fillRect(dividerX, dividerY, dividerW, 4);
-      cursorY += boxWidth * 0.05 - questionSize * 0.2;
+    var lineH = qFont * 1.32;
+    var bodyPadY = Math.max(qFont * 0.85, cardW * 0.07);
+    var bodyH = Math.max(lines.length * lineH + bodyPadY * 2, headerH * 2.4);
+
+    return {
+      w: cardW,
+      h: headerH + bodyH,
+      headerH: headerH,
+      headerFont: hFont,
+      padX: padX,
+      qFont: qFont,
+      lineH: lineH,
+      lines: lines,
+      radius: Math.min(c.radius * S, cardW / 2)
+    };
+  }
+
+  // Mede a caixinha garantindo que ela caiba na altura do criativo.
+  function measureCard(maxH) {
+    var base = state.q.size * state.card.scale;
+    var m = measureCardAt(base);
+    var font = base;
+    while (maxH && m.h > maxH && font > 14) {
+      font = Math.max(14, font - 2);
+      m = measureCardAt(font);
     }
+    return m;
+  }
+
+  // Monta todo o cenário para um formato. `fmt` opcional sobrescreve o atual.
+  function buildLayout(fmt) {
+    fmt = fmt || state.format;
+    var card = measureCard(fmt === "box" ? 0 : FORMATS[fmt].h);
+    var hasCard = state.question.trim().length > 0;
+    var hasAnswer = state.answer.text.trim().length > 0;
+
+    var W, H, pixelScale = 1, pad = 0;
+
+    if (fmt === "box") {
+      pad = state.card.shadow ? Math.round(card.w * 0.09) : 6;
+      W = card.w + pad * 2;
+      H = card.h + pad * 2;
+      pixelScale = clamp(1400 / W, 1, 4);
+    } else {
+      W = FORMATS[fmt].w;
+      H = FORMATS[fmt].h;
+    }
+
+    var layout = {
+      fmt: fmt,
+      W: W,
+      H: H,
+      pixelScale: pixelScale,
+      card: card,
+      hasCard: hasCard,
+      hasAnswer: hasAnswer,
+      boxOnly: fmt === "box"
+    };
+
+    if (fmt === "box") {
+      card.x = pad;
+      card.y = pad;
+      layout.hasAnswer = false;
+      layout.hasCard = true; // no modo caixinha sempre mostramos o card
+      return layout;
+    }
+
+    card.x = Math.round(state.card.cx * W - card.w / 2);
+    card.y = Math.round(state.card.cy * H - card.h / 2);
 
     if (hasAnswer) {
-      ctx.font = "700 " + answerSize + "px " + fontFamily;
-      ctx.fillStyle = rgba(state.textColor, 1);
-      cursorY += answerSize * 0.92;
-      answerLines.forEach(function (line) {
-        ctx.fillText(line, textX, cursorY);
-        cursorY += lineGapAnswer;
+      var a = state.answer;
+      var maxW = W * 0.86;
+      setFont(ctx, "700", a.size);
+      var lines = wrapLines(ctx, a.text.trim(), maxW);
+      var lineH = a.size * 1.3;
+      var h = lines.length * lineH;
+      var gap = Math.round(H * 0.035);
+      var cx, top;
+
+      if (a.pos === "below" && hasCard) {
+        cx = card.x + card.w / 2;
+        top = card.y + card.h + gap;
+      } else if (a.pos === "above" && hasCard) {
+        cx = card.x + card.w / 2;
+        top = card.y - gap - h;
+      } else {
+        cx = a.cx * W;
+        top = a.cy * H - h / 2;
+      }
+
+      layout.answer = {
+        lines: lines,
+        lineH: lineH,
+        font: a.size,
+        h: h,
+        w: maxW,
+        x: cx - maxW / 2,
+        y: top
+      };
+    }
+
+    return layout;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* desenho                                                             */
+  /* ------------------------------------------------------------------ */
+
+  var checkerPattern = null;
+
+  function getChecker(context) {
+    if (checkerPattern) return checkerPattern;
+    var t = document.createElement("canvas");
+    t.width = t.height = 40;
+    var c = t.getContext("2d");
+    c.fillStyle = "#ffffff";
+    c.fillRect(0, 0, 40, 40);
+    c.fillStyle = "#e6e6e8";
+    c.fillRect(0, 0, 20, 20);
+    c.fillRect(20, 20, 20, 20);
+    checkerPattern = context.createPattern(t, "repeat");
+    return checkerPattern;
+  }
+
+  function drawBackground(context, L, forExport) {
+    var bg = state.bg;
+
+    if (L.boxOnly || bg.type === "transparent") {
+      if (!forExport) {
+        context.fillStyle = getChecker(context);
+        context.fillRect(0, 0, L.W, L.H);
+      }
+      return;
+    }
+
+    if (bg.type === "gradient") {
+      var g;
+      if (bg.angle === "vertical") g = context.createLinearGradient(0, 0, 0, L.H);
+      else if (bg.angle === "horizontal") g = context.createLinearGradient(0, 0, L.W, 0);
+      else g = context.createLinearGradient(0, 0, L.W, L.H);
+      g.addColorStop(0, bg.color1);
+      g.addColorStop(1, bg.color2);
+      context.fillStyle = g;
+      context.fillRect(0, 0, L.W, L.H);
+      return;
+    }
+
+    if (bg.type === "image" && bg.image) {
+      var img = bg.image;
+      var ir = img.width / img.height;
+      var cr = L.W / L.H;
+      var sw, sh, sx, sy;
+      if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0; }
+      else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2; }
+      context.drawImage(img, sx, sy, sw, sh, 0, 0, L.W, L.H);
+      if (bg.dim) {
+        context.fillStyle = "rgba(0,0,0,0.35)";
+        context.fillRect(0, 0, L.W, L.H);
+      }
+      return;
+    }
+
+    context.fillStyle = bg.color1;
+    context.fillRect(0, 0, L.W, L.H);
+  }
+
+  function drawCard(context, L) {
+    var c = state.card;
+    var card = L.card;
+    var x = card.x, y = card.y, w = card.w, h = card.h;
+
+    // corpo (com sombra opcional)
+    context.save();
+    if (c.shadow) {
+      context.shadowColor = "rgba(0,0,0,0.22)";
+      context.shadowBlur = w * 0.07;
+      context.shadowOffsetY = w * 0.022;
+    }
+    roundRect(context, x, y, w, h, card.radius);
+    context.fillStyle = c.bodyColor;
+    context.fill();
+    context.restore();
+
+    // cabeçalho escuro, recortado pelo arredondamento do card
+    context.save();
+    roundRect(context, x, y, w, h, card.radius);
+    context.clip();
+    context.fillStyle = c.headerColor;
+    context.fillRect(x, y, w, card.headerH);
+    context.restore();
+
+    // texto do topo
+    var headerText = c.headerText.trim();
+    if (headerText) {
+      context.save();
+      setFont(context, "600", card.headerFont);
+      context.fillStyle = c.headerTextColor;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(headerText, x + w / 2, y + card.headerH / 2, w - card.padX);
+      context.restore();
+    }
+
+    // pergunta recebida, centralizada verticalmente no corpo
+    if (card.lines.length) {
+      context.save();
+      setFont(context, "600", card.qFont);
+      context.fillStyle = c.qColor;
+      context.textAlign = state.q.align;
+      context.textBaseline = "middle";
+
+      var bodyTop = y + card.headerH;
+      var bodyH = h - card.headerH;
+      var textH = card.lines.length * card.lineH;
+      var cursor = bodyTop + (bodyH - textH) / 2 + card.lineH / 2;
+      var tx = alignX(state.q.align, x, w, card.padX);
+
+      card.lines.forEach(function (line) {
+        context.fillText(line, tx, cursor);
+        cursor += card.lineH;
       });
+      context.restore();
     }
   }
 
-  function syncStateFromInputs() {
-    state.pergunta = els.pergunta.value;
-    state.resposta = els.resposta.value;
-    state.bgColor1 = els.bgColor1.value;
-    state.bgColor2 = els.bgColor2.value;
-    state.bgOverlay = els.bgOverlay.checked;
-    state.boxColor = els.boxColor.value;
-    state.boxOpacity = parseInt(els.boxOpacity.value, 10) / 100;
-    state.textColor = els.textColor.value;
-    state.textSize = parseInt(els.textSize.value, 10);
-    state.radius = parseInt(els.radius.value, 10);
-
-    els.boxOpacityVal.textContent = els.boxOpacity.value + "%";
-    els.textSizeVal.textContent = els.textSize.value + "px";
-    els.radiusVal.textContent = els.radius.value + "px";
+  function drawAnswer(context, L) {
+    var a = L.answer;
+    context.save();
+    setFont(context, "700", a.font);
+    context.fillStyle = state.answer.color;
+    context.textAlign = state.answer.align;
+    context.textBaseline = "middle";
+    var tx = alignX(state.answer.align, a.x, a.w, 0);
+    var cursor = a.y + a.lineH / 2;
+    a.lines.forEach(function (line) {
+      context.fillText(line, tx, cursor);
+      cursor += a.lineH;
+    });
+    context.restore();
   }
 
-  function scheduleRender() {
-    syncStateFromInputs();
-    render();
+  function drawPlaceholder(context, L) {
+    context.save();
+    setFont(context, "500", Math.round(L.W * 0.032));
+    context.fillStyle = "rgba(120,120,130,0.75)";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("Digite a pergunta recebida", L.W / 2, L.H / 2);
+    context.restore();
   }
 
-  [
-    els.pergunta, els.resposta, els.bgColor1, els.bgColor2, els.bgOverlay,
-    els.boxColor, els.boxOpacity, els.textColor, els.textSize, els.radius,
-  ].forEach(function (el) {
-    el.addEventListener("input", scheduleRender);
+  function renderTo(context, L, forExport) {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+    context.scale(L.pixelScale, L.pixelScale);
+
+    drawBackground(context, L, forExport);
+    if (L.hasCard) drawCard(context, L);
+    if (L.hasAnswer && L.answer) drawAnswer(context, L);
+    if (!forExport && !L.hasCard && !L.hasAnswer) drawPlaceholder(context, L);
+  }
+
+  var currentLayout = null;
+
+  function render() {
+    var L = buildLayout();
+    currentLayout = L;
+    var pw = Math.round(L.W * L.pixelScale);
+    var ph = Math.round(L.H * L.pixelScale);
+    if (canvas.width !== pw) canvas.width = pw;
+    if (canvas.height !== ph) canvas.height = ph;
+    renderTo(ctx, L, false);
+
+    var f = FORMATS[state.format];
+    $("sizeTag").textContent = state.format === "box"
+      ? Math.round(L.W * L.pixelScale) + " × " + Math.round(L.H * L.pixelScale) + " (auto)"
+      : f.label;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* exportação                                                          */
+  /* ------------------------------------------------------------------ */
+
+  function exportPNG(fmt, suffix) {
+    var L = buildLayout(fmt);
+    var off = document.createElement("canvas");
+    off.width = Math.round(L.W * L.pixelScale);
+    off.height = Math.round(L.H * L.pixelScale);
+    var octx = off.getContext("2d");
+    renderTo(octx, L, true);
+
+    var finish = function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      var stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+      a.href = url;
+      a.download = "caixinha-" + suffix + "-" + stamp + ".png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    };
+
+    if (off.toBlob) off.toBlob(finish, "image/png");
+    else {
+      var a2 = document.createElement("a");
+      a2.href = off.toDataURL("image/png");
+      a2.download = "caixinha-" + suffix + ".png";
+      a2.click();
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* arrastar no preview                                                 */
+  /* ------------------------------------------------------------------ */
+
+  var drag = null;
+
+  function pointerPos(e) {
+    var r = canvas.getBoundingClientRect();
+    var L = currentLayout;
+    return {
+      x: (e.clientX - r.left) / r.width * L.W,
+      y: (e.clientY - r.top) / r.height * L.H
+    };
+  }
+
+  function inRect(p, x, y, w, h) {
+    return p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h;
+  }
+
+  canvas.addEventListener("pointerdown", function (e) {
+    var L = currentLayout;
+    if (!L || L.boxOnly) return;
+    var p = pointerPos(e);
+
+    if (L.hasAnswer && L.answer && inRect(p, L.answer.x, L.answer.y, L.answer.w, L.answer.h)) {
+      drag = { target: "answer", dx: p.x - (L.answer.x + L.answer.w / 2), dy: p.y - (L.answer.y + L.answer.h / 2) };
+    } else if (L.hasCard && inRect(p, L.card.x, L.card.y, L.card.w, L.card.h)) {
+      drag = { target: "card", dx: p.x - (L.card.x + L.card.w / 2), dy: p.y - (L.card.y + L.card.h / 2) };
+    } else {
+      return;
+    }
+
+    canvas.classList.add("dragging");
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
   });
 
-  els.bgImage.addEventListener("change", function (e) {
+  canvas.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var L = currentLayout;
+    var p = pointerPos(e);
+    var cx = clamp((p.x - drag.dx) / L.W, 0, 1);
+    var cy = clamp((p.y - drag.dy) / L.H, 0, 1);
+
+    if (drag.target === "card") {
+      state.card.cx = cx;
+      state.card.cy = cy;
+    } else {
+      state.answer.cx = cx;
+      state.answer.cy = cy;
+      if (state.answer.pos !== "free") {
+        state.answer.pos = "free";
+        setSegActive($("aPos"), "pos", "free");
+      }
+    }
+    render();
+    e.preventDefault();
+  });
+
+  function endDrag(e) {
+    if (!drag) return;
+    drag = null;
+    canvas.classList.remove("dragging");
+    if (e && e.pointerId != null && canvas.hasPointerCapture(e.pointerId)) {
+      canvas.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  /* ------------------------------------------------------------------ */
+  /* ligação com os controles                                            */
+  /* ------------------------------------------------------------------ */
+
+  function setSegActive(group, attr, value) {
+    Array.prototype.forEach.call(group.querySelectorAll(".seg"), function (b) {
+      b.classList.toggle("active", b.dataset[attr] === value);
+    });
+  }
+
+  function onSeg(group, attr, handler) {
+    group.addEventListener("click", function (e) {
+      var btn = e.target.closest(".seg");
+      if (!btn || !group.contains(btn)) return;
+      var value = btn.dataset[attr];
+      setSegActive(group, attr, value);
+      handler(value);
+      render();
+    });
+  }
+
+  function bind(id, event, handler) {
+    $(id).addEventListener(event || "input", function (e) {
+      handler(e.target);
+      render();
+    });
+  }
+
+  // textos
+  bind("pergunta", "input", function (el) { state.question = el.value; });
+  bind("resposta", "input", function (el) { state.answer.text = el.value; });
+  bind("headerText", "input", function (el) { state.card.headerText = el.value; });
+
+  // caixinha
+  bind("headerColor", "input", function (el) { state.card.headerColor = el.value; });
+  bind("bodyColor", "input", function (el) { state.card.bodyColor = el.value; });
+  bind("headerTextColor", "input", function (el) { state.card.headerTextColor = el.value; });
+  bind("qColor", "input", function (el) { state.card.qColor = el.value; });
+  bind("shadow", "change", function (el) { state.card.shadow = el.checked; });
+
+  bind("cardWidth", "input", function (el) {
+    state.card.widthFrac = +el.value / 100;
+    $("cardWidthVal").textContent = el.value + "%";
+  });
+  bind("radius", "input", function (el) {
+    state.card.radius = +el.value;
+    $("radiusVal").textContent = el.value;
+  });
+  bind("scale", "input", function (el) {
+    state.card.scale = +el.value / 100;
+    $("scaleVal").textContent = el.value + "%";
+  });
+
+  // pergunta
+  bind("qSize", "input", function (el) {
+    state.q.size = +el.value;
+    $("qSizeVal").textContent = el.value;
+  });
+  bind("qWrap", "change", function (el) { state.q.wrap = el.checked; });
+  onSeg($("qAlign"), "align", function (v) { state.q.align = v; });
+
+  // resposta
+  bind("aSize", "input", function (el) {
+    state.answer.size = +el.value;
+    $("aSizeVal").textContent = el.value;
+  });
+  bind("aColor", "input", function (el) { state.answer.color = el.value; });
+  onSeg($("aAlign"), "align", function (v) { state.answer.align = v; });
+  onSeg($("aPos"), "pos", function (v) { state.answer.pos = v; });
+
+  // fundo
+  bind("bgColor1", "input", function (el) { state.bg.color1 = el.value; });
+  bind("bgColor2", "input", function (el) { state.bg.color2 = el.value; });
+  bind("bgAngle", "change", function (el) { state.bg.angle = el.value; });
+  bind("bgDim", "change", function (el) { state.bg.dim = el.checked; });
+
+  onSeg($("bgType"), "bg", function (v) {
+    state.bg.type = v;
+    $("bg1Field").hidden = !(v === "solid" || v === "gradient");
+    $("bg2Field").hidden = v !== "gradient";
+    $("bgAngleField").hidden = v !== "gradient";
+    $("bgImageField").hidden = v !== "image";
+  });
+
+  $("bgImage").addEventListener("change", function (e) {
     var file = e.target.files && e.target.files[0];
     if (!file) return;
     var reader = new FileReader();
     reader.onload = function (ev) {
       var img = new Image();
-      img.onload = function () {
-        state.bgImageEl = img;
-        render();
-      };
+      img.onload = function () { state.bg.image = img; render(); };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   });
 
-  function setActiveSeg(group, attr, value) {
-    Array.prototype.forEach.call(group.querySelectorAll(".seg-btn"), function (btn) {
-      btn.classList.toggle("active", btn.dataset[attr] === value);
-    });
-  }
+  // formato
+  onSeg($("formatBar"), "format", function (v) {
+    state.format = v;
+    $("stageHint").textContent = v === "box"
+      ? "Exportação automática com fundo transparente."
+      : "Arraste a caixinha no preview para reposicionar.";
+  });
 
-  els.bgTypeGroup.addEventListener("click", function (e) {
-    var btn = e.target.closest(".seg-btn");
-    if (!btn) return;
-    state.bgType = btn.dataset.bgtype;
-    setActiveSeg(els.bgTypeGroup, "bgtype", state.bgType);
-
-    els.bgColor1Field.classList.toggle("hidden", state.bgType === "image");
-    els.bgColor2Field.classList.toggle("hidden", state.bgType !== "gradient");
-    els.bgImageField.classList.toggle("hidden", state.bgType !== "image");
-
+  // ações
+  $("btnCenter").addEventListener("click", function () {
+    state.card.cx = 0.5;
+    state.card.cy = 0.5;
+    state.answer.cx = 0.5;
+    state.answer.cy = 0.75;
     render();
   });
 
-  els.alignGroup.addEventListener("click", function (e) {
-    var btn = e.target.closest(".seg-btn");
-    if (!btn) return;
-    state.align = btn.dataset.align;
-    setActiveSeg(els.alignGroup, "align", state.align);
+  $("btnClear").addEventListener("click", function () {
+    state.question = "";
+    state.answer.text = "";
+    $("pergunta").value = "";
+    $("resposta").value = "";
+    state.card.cx = 0.5;
+    state.card.cy = 0.5;
     render();
+    $("pergunta").focus();
   });
 
-  els.downloadBtn.addEventListener("click", function () {
-    syncStateFromInputs();
-    render();
-    canvas.toBlob(function (blob) {
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      var ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-      a.href = url;
-      a.download = "caixinha-pergunta-" + ts + ".png";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    }, "image/png", 1.0);
+  $("btnDownload").addEventListener("click", function () {
+    exportPNG(state.format, state.format);
   });
 
-  syncStateFromInputs();
+  $("btnDownloadBox").addEventListener("click", function () {
+    exportPNG("box", "transparente");
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* estado inicial                                                      */
+  /* ------------------------------------------------------------------ */
+
+  $("pergunta").value = state.question;
+  $("resposta").value = state.answer.text;
+  setSegActive($("formatBar"), "format", state.format);
+  setSegActive($("qAlign"), "align", state.q.align);
+  setSegActive($("aAlign"), "align", state.answer.align);
+  setSegActive($("aPos"), "pos", state.answer.pos);
+  setSegActive($("bgType"), "bg", state.bg.type);
+  $("bg1Field").hidden = false;
+
   render();
 })();
