@@ -41,6 +41,12 @@
 
       <div class="card main-fields">
         <div class="field">
+          <label for="headerText">Texto do topo <span class="opt">cabeçalho da caixinha</span></label>
+          <input type="text" id="headerText" value="Faça uma pergunta" maxlength="60"
+            placeholder="Ex: Faça uma pergunta">
+        </div>
+
+        <div class="field">
           <label for="pergunta">Pergunta recebida</label>
           <textarea id="pergunta" rows="2" maxlength="300"
             placeholder="Ex: Quanto custa o tratamento?"></textarea>
@@ -58,7 +64,7 @@
         <div class="panel-body">
           <div class="field row">
             <label for="headerColor">Cor do cabeçalho</label>
-            <input type="color" id="headerColor" value="#1C1C1E">
+            <input type="color" id="headerColor" value="#262626">
           </div>
           <div class="field row">
             <label for="bodyColor">Cor do corpo</label>
@@ -66,19 +72,19 @@
           </div>
           <div class="field row">
             <label for="headerTextColor">Cor do texto superior</label>
-            <input type="color" id="headerTextColor" value="#E9E9EB">
+            <input type="color" id="headerTextColor" value="#C7C7C7">
           </div>
           <div class="field row">
             <label for="qColor">Cor da pergunta</label>
-            <input type="color" id="qColor" value="#1A1A1A">
+            <input type="color" id="qColor" value="#262626">
           </div>
           <div class="field">
             <label for="cardWidth">Largura <b class="val" id="cardWidthVal">82%</b></label>
             <input type="range" id="cardWidth" min="40" max="100" value="82">
           </div>
           <div class="field">
-            <label for="radius">Arredondamento <b class="val" id="radiusVal">44</b></label>
-            <input type="range" id="radius" min="0" max="90" value="44">
+            <label for="radius">Arredondamento <b class="val" id="radiusVal">54</b></label>
+            <input type="range" id="radius" min="0" max="90" value="54">
           </div>
           <div class="field">
             <label for="scale">Tamanho geral <b class="val" id="scaleVal">100%</b></label>
@@ -87,10 +93,6 @@
           <label class="check">
             <input type="checkbox" id="shadow"> Sombra suave
           </label>
-          <div class="field">
-            <label for="headerText">Texto do topo</label>
-            <input type="text" id="headerText" value="Faça uma pergunta" maxlength="60">
-          </div>
           <button type="button" class="btn btn-soft" id="btnCenter">Centralizar caixinha</button>
         </div>
       </details>

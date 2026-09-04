@@ -9,6 +9,12 @@
   var BASE_W = 1080; // largura de referência usada para dimensionar a caixinha
   var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
+  var DEFAULT_HEADER = "Faça uma pergunta";
+
+  // Pesos usados tanto na medição quanto no desenho — precisam bater.
+  var Q_WEIGHT = "500";
+  var H_WEIGHT = "600";
+
   var FORMATS = {
     story: { w: 1080, h: 1920, label: "1080 × 1920" },
     vertical: { w: 1080, h: 1350, label: "1080 × 1350" },
@@ -21,41 +27,46 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
-  var state = {
-    format: "story",
-    question: "Quanto custa o tratamento?",
-    card: {
-      headerText: "Faça uma pergunta",
-      headerColor: "#1C1C1E",
-      bodyColor: "#FFFFFF",
-      headerTextColor: "#E9E9EB",
-      qColor: "#1A1A1A",
-      widthFrac: 0.82,
-      radius: 44,
-      scale: 1,
-      shadow: false,
-      cx: 0.5,
-      cy: 0.5
-    },
-    q: { size: 52, align: "center", wrap: true },
-    answer: {
-      text: "",
-      size: 54,
-      color: "#FFFFFF",
-      align: "center",
-      pos: "below",
-      cx: 0.5,
-      cy: 0.75
-    },
-    bg: {
-      type: "solid",
-      color1: "#6C4AE6",
-      color2: "#FF6EC7",
-      angle: "diagonal",
-      image: null,
-      dim: false
-    }
-  };
+  // Estado inicial da ferramenta. O botão "Limpar" volta exatamente para aqui.
+  function defaultState(blank) {
+    return {
+      format: "story",
+      question: blank ? "" : "Quanto custa o tratamento?",
+      card: {
+        headerText: DEFAULT_HEADER,
+        headerColor: "#262626",
+        bodyColor: "#FFFFFF",
+        headerTextColor: "#C7C7C7",
+        qColor: "#262626",
+        widthFrac: 0.82,
+        radius: 54,
+        scale: 1,
+        shadow: false,
+        cx: 0.5,
+        cy: 0.5
+      },
+      q: { size: 52, align: "center", wrap: true },
+      answer: {
+        text: "",
+        size: 54,
+        color: "#FFFFFF",
+        align: "center",
+        pos: "below",
+        cx: 0.5,
+        cy: 0.75
+      },
+      bg: {
+        type: "solid",
+        color1: "#6C4AE6",
+        color2: "#FF6EC7",
+        angle: "diagonal",
+        image: null,
+        dim: false
+      }
+    };
+  }
+
+  var state = defaultState(false);
 
   /* ------------------------------------------------------------------ */
   /* utilidades                                                          */
@@ -142,37 +153,49 @@
     var padX = cardW * 0.085;
     var maxTextW = cardW - padX * 2;
 
-    var hFont = Math.max(16, Math.round(qFont * 0.5));
-    var headerH = Math.round(hFont * 3.1);
+    var hFont = Math.max(16, Math.round(qFont * 0.72));
+    var headerH = Math.round(hFont * 3.2);
+
+    // O texto do topo reduz a fonte para caber, sem mudar a altura do cabeçalho.
+    var headerText = c.headerText.trim();
+    var headerFont = hFont;
+    if (headerText) {
+      var floor = Math.max(12, hFont * 0.6);
+      setFont(ctx, H_WEIGHT, headerFont);
+      while (headerFont > floor && ctx.measureText(headerText).width > maxTextW) {
+        headerFont -= 1;
+        setFont(ctx, H_WEIGHT, headerFont);
+      }
+    }
 
     var text = state.question.trim();
     var lines = [];
 
     if (text) {
       if (state.q.wrap) {
-        setFont(ctx, "600", qFont);
+        setFont(ctx, Q_WEIGHT, qFont);
         lines = wrapLines(ctx, text, maxTextW);
       } else {
         // sem quebra: reduz a fonte até caber em uma única linha
         var single = text.replace(/\s*\n\s*/g, " ");
-        setFont(ctx, "600", qFont);
+        setFont(ctx, Q_WEIGHT, qFont);
         while (qFont > 12 && ctx.measureText(single).width > maxTextW) {
           qFont -= 1;
-          setFont(ctx, "600", qFont);
+          setFont(ctx, Q_WEIGHT, qFont);
         }
         lines = [single];
       }
     }
 
     var lineH = qFont * 1.32;
-    var bodyPadY = Math.max(qFont * 0.85, cardW * 0.07);
-    var bodyH = Math.max(lines.length * lineH + bodyPadY * 2, headerH * 2.4);
+    var bodyPadY = Math.max(qFont * 1.5, cardW * 0.11);
+    var bodyH = Math.max(lines.length * lineH + bodyPadY * 2, headerH * 2);
 
     return {
       w: cardW,
       h: headerH + bodyH,
       headerH: headerH,
-      headerFont: hFont,
+      headerFont: headerFont,
       padX: padX,
       qFont: qFont,
       lineH: lineH,
@@ -360,7 +383,7 @@
     var headerText = c.headerText.trim();
     if (headerText) {
       context.save();
-      setFont(context, "600", card.headerFont);
+      setFont(context, H_WEIGHT, card.headerFont);
       context.fillStyle = c.headerTextColor;
       context.textAlign = "center";
       context.textBaseline = "middle";
@@ -371,7 +394,7 @@
     // pergunta recebida, centralizada verticalmente no corpo
     if (card.lines.length) {
       context.save();
-      setFont(context, "600", card.qFont);
+      setFont(context, Q_WEIGHT, card.qFont);
       context.fillStyle = c.qColor;
       context.textAlign = state.q.align;
       context.textBaseline = "middle";
@@ -406,13 +429,21 @@
     context.restore();
   }
 
+  // Dica visível apenas no preview: nunca entra na exportação.
   function drawPlaceholder(context, L) {
+    var label = "Digite a pergunta recebida";
+    var size = Math.round(L.W * 0.032);
     context.save();
-    setFont(context, "500", Math.round(L.W * 0.032));
-    context.fillStyle = "rgba(120,120,130,0.75)";
+    setFont(context, "500", size);
+    var w = context.measureText(label).width + size * 1.6;
+    var h = size * 2.4;
+    roundRect(context, (L.W - w) / 2, (L.H - h) / 2, w, h, h / 2);
+    context.fillStyle = "rgba(0,0,0,0.42)";
+    context.fill();
+    context.fillStyle = "rgba(255,255,255,0.92)";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillText("Digite a pergunta recebida", L.W / 2, L.H / 2);
+    context.fillText(label, L.W / 2, L.H / 2);
     context.restore();
   }
 
@@ -569,6 +600,64 @@
     });
   }
 
+  function syncBgFields() {
+    var v = state.bg.type;
+    $("bg1Field").hidden = !(v === "solid" || v === "gradient");
+    $("bg2Field").hidden = v !== "gradient";
+    $("bgAngleField").hidden = v !== "gradient";
+    $("bgImageField").hidden = v !== "image";
+  }
+
+  function syncHint() {
+    $("stageHint").textContent = state.format === "box"
+      ? "Exportação automática com fundo transparente."
+      : "Arraste a caixinha no preview para reposicionar.";
+  }
+
+  // Escreve o estado atual em todos os controles da interface.
+  function syncControls() {
+    var c = state.card;
+
+    $("headerText").value = c.headerText;
+    $("pergunta").value = state.question;
+    $("resposta").value = state.answer.text;
+
+    $("headerColor").value = c.headerColor;
+    $("bodyColor").value = c.bodyColor;
+    $("headerTextColor").value = c.headerTextColor;
+    $("qColor").value = c.qColor;
+    $("shadow").checked = c.shadow;
+
+    $("cardWidth").value = Math.round(c.widthFrac * 100);
+    $("cardWidthVal").textContent = Math.round(c.widthFrac * 100) + "%";
+    $("radius").value = c.radius;
+    $("radiusVal").textContent = c.radius;
+    $("scale").value = Math.round(c.scale * 100);
+    $("scaleVal").textContent = Math.round(c.scale * 100) + "%";
+
+    $("qSize").value = state.q.size;
+    $("qSizeVal").textContent = state.q.size;
+    $("qWrap").checked = state.q.wrap;
+
+    $("aSize").value = state.answer.size;
+    $("aSizeVal").textContent = state.answer.size;
+    $("aColor").value = state.answer.color;
+
+    $("bgColor1").value = state.bg.color1;
+    $("bgColor2").value = state.bg.color2;
+    $("bgAngle").value = state.bg.angle;
+    $("bgDim").checked = state.bg.dim;
+
+    setSegActive($("formatBar"), "format", state.format);
+    setSegActive($("qAlign"), "align", state.q.align);
+    setSegActive($("aAlign"), "align", state.answer.align);
+    setSegActive($("aPos"), "pos", state.answer.pos);
+    setSegActive($("bgType"), "bg", state.bg.type);
+
+    syncBgFields();
+    syncHint();
+  }
+
   function bind(id, event, handler) {
     $(id).addEventListener(event || "input", function (e) {
       handler(e.target);
@@ -626,10 +715,7 @@
 
   onSeg($("bgType"), "bg", function (v) {
     state.bg.type = v;
-    $("bg1Field").hidden = !(v === "solid" || v === "gradient");
-    $("bg2Field").hidden = v !== "gradient";
-    $("bgAngleField").hidden = v !== "gradient";
-    $("bgImageField").hidden = v !== "image";
+    syncBgFields();
   });
 
   $("bgImage").addEventListener("change", function (e) {
@@ -647,9 +733,7 @@
   // formato
   onSeg($("formatBar"), "format", function (v) {
     state.format = v;
-    $("stageHint").textContent = v === "box"
-      ? "Exportação automática com fundo transparente."
-      : "Arraste a caixinha no preview para reposicionar.";
+    syncHint();
   });
 
   // ações
@@ -661,13 +745,11 @@
     render();
   });
 
+  // "Limpar" começa uma criação nova: textos, estilos, fundo, formato e posição.
   $("btnClear").addEventListener("click", function () {
-    state.question = "";
-    state.answer.text = "";
-    $("pergunta").value = "";
-    $("resposta").value = "";
-    state.card.cx = 0.5;
-    state.card.cy = 0.5;
+    state = defaultState(true);
+    $("bgImage").value = "";
+    syncControls();
     render();
     $("pergunta").focus();
   });
@@ -684,14 +766,6 @@
   /* estado inicial                                                      */
   /* ------------------------------------------------------------------ */
 
-  $("pergunta").value = state.question;
-  $("resposta").value = state.answer.text;
-  setSegActive($("formatBar"), "format", state.format);
-  setSegActive($("qAlign"), "align", state.q.align);
-  setSegActive($("aAlign"), "align", state.answer.align);
-  setSegActive($("aPos"), "pos", state.answer.pos);
-  setSegActive($("bgType"), "bg", state.bg.type);
-  $("bg1Field").hidden = false;
-
+  syncControls();
   render();
 })();

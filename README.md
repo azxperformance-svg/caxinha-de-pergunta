@@ -20,15 +20,27 @@ ferramenta gera o card no estado "alguém já perguntou isso".
 
 Abra o `index.html` no navegador. Sem instalação, sem build, sem backend, sem login.
 
-1. Digite a pergunta recebida — o preview atualiza na hora.
-2. Opcionalmente escreva a resposta (texto do criativo, fora da caixinha).
-3. Ajuste posição/tamanho se quiser (arraste a caixinha no preview).
-4. Clique em **Baixar PNG**.
+O editor tem três campos, na ordem em que a caixinha é lida:
+
+1. **Texto do topo** — o que você escreveu no sticker (padrão "Faça uma pergunta");
+   aceita emoji.
+2. **Pergunta recebida** — a pergunta que o seguidor teria enviado.
+3. **Resposta** — opcional, é o texto do criativo, fora da caixinha.
+
+O preview atualiza a cada tecla. Ajuste posição/tamanho se quiser (arraste a
+caixinha no preview) e clique em **Baixar PNG**.
+
+O botão **Limpar** começa uma criação nova do zero: apaga os textos e devolve
+cores, tamanhos, alinhamentos, fundo, formato e posição aos valores padrão.
 
 ## O que dá para fazer
 
 **Conteúdo** — só pergunta, pergunta + resposta, só resposta ou vazio (botão *Limpar*).
 A caixinha só aparece quando existe uma pergunta.
+
+**Visual padrão** — cores e proporções do sticker do Instagram: cabeçalho `#262626`
+com texto `#C7C7C7`, corpo branco e pergunta `#262626`, cantos bem arredondados e
+cabeçalho ocupando cerca de um terço da altura. Tudo editável.
 
 **Formatos** — Story (1080×1920), Post vertical (1080×1350), Quadrado (1080×1080)
 e *Só a caixinha* (tamanho automático, fundo transparente).
@@ -43,7 +55,7 @@ além do botão *Centralizar caixinha*.
 
 **Personalização** — cor do cabeçalho, do corpo, do texto do topo e da pergunta;
 alinhamento e quebra automática de linha; tamanho, cor, alinhamento e posição da
-resposta; texto do topo editável (padrão "Faça uma pergunta").
+resposta.
 
 **Exportação** — *Baixar PNG* exporta o criativo no formato escolhido; *Baixar somente
 a caixinha* exporta só o card, com fundo transparente e no mínimo 1400px de largura.
@@ -55,6 +67,7 @@ separado, sem o xadrez de transparência do preview.
 A pergunta se adapta ao tamanho: quebra automática de linha, quebra por caractere
 para palavras maiores que a linha, altura do card crescendo conforme necessário e
 redução automática da fonte quando o card não cabe na altura do criativo. O texto
+do topo também reduz a fonte para caber, sem alterar a altura do cabeçalho. O texto
 nunca escapa da caixinha.
 
 ## Estrutura
